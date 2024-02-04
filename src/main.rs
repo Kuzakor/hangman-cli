@@ -1,139 +1,80 @@
-mod menu;
-
 use std::io;
-use crate::menu::{eval, clear};
-use serde::Deserialize;
+
+use crate::game::{Game, game_load, game_save};
+use crate::menu::{Action, clear, eval};
+
+mod menu;
+mod game;
+mod api;
 
 fn main() {
-    if menu::render_menu() != menu::Action::START {
-        return
+    let menu_result = menu::render_menu();
+    match menu_result.0  {
+        Action::START => new_game(),
+        Action::RESUME => update(&mut game_load(eval("last")).unwrap_or(Game::new())),
+        Action::SAVED => update(&mut game_load(menu_result.1.to_string()).unwrap_or(Game::new()))
     }
-    game();
     println!("Click enter to go back to the menu");
     get_char();
+    main()
 }
 
-fn game() {
+fn new_game() {
     clear();
     println!("The executioner is thinking......");
-    let word = get_word();
     println!("He got one!");
     println!("Loading...");
-    let guesses = eval("guess").parse().unwrap();
-    let mut wrong_guesses = Vec::new();
-    let mut guessed = Vec::new();
     clear();
-    update(&word, guesses, &mut wrong_guesses, &mut guessed);
+    update(&mut Game::new())
 }
 
-fn update(word: &String, guesses: i32, wrong_guesses: &mut Vec<char>, guessed: &mut Vec<char>) {
+fn update(game: &mut Game) {
     clear();
 
-    if guesses < 1 {
-        println!("You've lost, the word was {}", word);
+    if game.guesses < 1 {
+        println!("You've lost, the word was {}", game.word);
         return;
     }
 
-    if is_won(word, guessed) {
+    if game.is_won() {
         println!("You won");
-        render_word(word, guessed);
+        game.render_word();
         return;
     }
 
-    println!("You have {} wrong guesses left", guesses);
-    println!("You've guessed wrong the following letters: {:?}", wrong_guesses);
+    println!("Just press enter if you want to save and go back to the menu");
+    println!("You have {} wrong guesses left", &game.guesses);
+    println!("You've guessed wrong the following letters: {:?}", &game.wrong_guesses);
 
-    render_word(word, guessed);
+    game.render_word();
 
     let input = get_char();
-    match word.contains(input) {
+
+    if input == '\n' {
+        game_save(game);
+        return;
+    }
+
+    match game.word.contains(input) {
         false => {
-            if wrong_guesses.contains(&input) {
-                update(word, guesses, wrong_guesses, guessed)
+            if game.wrong_guesses.contains(&input) {
+                update(game)
             }
-            wrong_guesses.push(input);
-            update(word, guesses - 1, wrong_guesses, guessed)
+            game.wrong_guesses.push(input);
+            game.guesses = game.guesses - 1;
+            update(game)
         }
         true => {
-            if !guessed.contains(&input) {
-                guessed.push(input);
+            if !game.guessed.contains(&input) {
+                game.guessed.push(input);
             }
-            update(word, guesses, wrong_guesses, guessed)
+            update(game)
         }
     }
 }
 
-fn is_won(word: &String, guessed: &mut Vec<char>) -> bool{
-    for i in word.chars() {
-        if !guessed.contains(&i) {
-            return false;
-        }
-    }
-    true
-}
 
-
-fn render_word(word: &String, guessed: &mut Vec<char>) {
-    for i in word.chars() {
-        match guessed.contains(&i) {
-            true => print!("{} ", i),
-            false => print!("_ ")
-        }
-    }
-    println!();
-}
-
-fn get_word() -> String{
-    setup_mode();
-
-    let url = match eval("easy").as_str(){
-        "0" => generate_hard_url(),
-        "1" => generate_easy_url(),
-        _ => panic!("How the fuck")
-    };
-
-    match reqwest::blocking::get(url).unwrap().text() {
-        Ok(value) => word_cleanup(value),
-        Err(_) => get_word()
-    }
-
-}
-
-fn word_cleanup(s: String) -> String{
-    let mut s = s.clone();
-    for _ in 0..2 {
-        s.remove(0);
-        s.pop();
-    }
-    s
-}
-
-
-fn setup_mode() {
-    let db_connection = sled::open("data").unwrap();
-    if db_connection.get("easy").unwrap().is_none() {
-        let _ = db_connection.insert("easy", "0");
-    }
-    drop(db_connection);
-}
-
-
-fn generate_easy_url() -> String {
-    match eval("length").as_str() {
-        "0" => String::from("https://random-word-api.vercel.app/api?words=1"),
-        _ => format!("https://random-word-api.vercel.app/api?words=1&length={}",  eval("length").as_str()),
-    }
-}
-
-fn generate_hard_url() -> String {
-    match eval("length").as_str() {
-        "0" => format!("https://random-word-api.herokuapp.com/word?lang={}", eval("lang").as_str()),
-        _ => format!("https://random-word-api.herokuapp.com/word?lang={}&length={}", eval("lang").as_str(), eval("length").as_str()),
-
-    }
-}
-
-fn get_char() -> char{
+fn get_char() -> char {
     let mut input = String::new();
     io::stdin().read_line(&mut input).unwrap();
     input.chars().next().unwrap_or_else(|| get_char())

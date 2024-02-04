@@ -1,32 +1,67 @@
 use std::io;
-
+use crate::game::{load_all_games, game_remove};
 #[derive(Debug, PartialEq)]
 pub enum Action {
     START,
     RESUME,
     SAVED,
 }
-pub fn render_menu() -> Action {
+pub fn render_menu() -> (Action, i32) {
     clear();
     println!("-----------------------------------");
     println!("| Select option:                  |");
     println!("| 1. Start new game               |");
-    println!("| 2. Resume last game (under dev) |");
-    println!("| 3. Saved games (under dev)      |");
+    println!("| 2. Resume last game             |");
+    println!("| 3. Saved games                  |");
     println!("| 4. Settings                     |");
     println!("| 5. Exit                         |");
     println!("-----------------------------------");
     match get_int() {
-        1 => Action::START,
-        2 => Action::RESUME,
-        3 => Action::SAVED,
+        1 => (Action::START, 0),
+        2 => (Action::RESUME, 0),
+        3 => render_saved(),
         4 => render_settings(),
         5 => std::process::exit(0),
         _ => render_menu()
     }
 }
 
-pub fn render_settings() -> Action {
+pub fn render_saved() -> (Action, i32){
+    clear();
+    println!("---------------------------------------------------------");
+    for game in load_all_games(1) {
+        println!("| {}. | remaining guesses: {}. guessed letters: {} ot of {}", game.id, game.guesses, game.guessed.len(), game.word.len())
+    }
+    println!("---------------------------------------------------------");
+    println!("Select game (number not from the list - exit): ");
+    let id = get_int();
+    if id > eval("last").parse().unwrap() {
+        return render_menu();
+    }
+    clear();
+    println!("-----------------------------------");
+    println!("| Game number {} has been chosen |", id);
+    println!("-----------------------------------");
+    println!("| Select action:                  |");
+    println!("| 1. Play                         |");
+    println!("| 2. Remove                       |");
+    println!("| 3. Select different             |");
+    println!("-----------------------------------");
+    let action = get_int();
+    match action {
+        1 => (Action::SAVED, id),
+        2 => {
+            game_remove(id.to_string());
+            render_saved()
+        }
+        3 => render_saved(),
+        _ => render_menu()
+    }
+
+}
+
+
+pub fn render_settings() -> (Action, i32) {
     clear();
     println!("---------------------------------------------");
     println!("| Select option:");
@@ -45,21 +80,21 @@ pub fn render_settings() -> Action {
     }
 }
 
-fn set_guesses() -> Action {
+fn set_guesses() -> (Action, i32) {
     clear();
     println!("Insert a number (deafult: 13): ");
     let _ = sled::open("data").unwrap().insert("guess", &*get_int().to_string());
     render_settings()
 }
 
-fn set_length() -> Action {
+fn set_length() -> (Action, i32) {
     clear();
     println!("Insert a number (deafult: 0 (random): ");
     let _ = sled::open("data").unwrap().insert("length", &*get_int().to_string());
     render_settings()
 }
 
-fn set_mode() -> Action {
+fn set_mode() -> (Action, i32) {
     match eval("easy") == "0" {
         true => sled::open("data").unwrap().insert("easy", "1"),
         false => sled::open("data").unwrap().insert("easy", "0")
@@ -67,7 +102,7 @@ fn set_mode() -> Action {
     render_settings()
 }
 
-pub fn render_lang() -> Action {
+pub fn render_lang() -> (Action, i32) {
     clear();
     println!("------------------");
     println!("| Select option: |");
@@ -121,6 +156,7 @@ fn set_default(key: &str) -> String {
         "lang" => String::from("en"),
         "length" => String::from("0"),
         "guess" => String::from("13"),
+        "last" => String::from("0"),
         _ => String::from("Not set")
     }
 }
