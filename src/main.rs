@@ -3,7 +3,7 @@ mod menu;
 use std::io;
 use crate::menu::{eval, clear};
 use serde::Deserialize;
-use reqwest::blocking::get;
+
 fn main() {
     if menu::render_menu() != menu::Action::START {
         return
@@ -93,7 +93,7 @@ fn get_word() -> String{
     };
 
     match reqwest::blocking::get(url).unwrap().text() {
-        Ok(mut value) => word_cleanup(value),
+        Ok(value) => word_cleanup(value),
         Err(_) => get_word()
     }
 
@@ -101,7 +101,7 @@ fn get_word() -> String{
 
 fn word_cleanup(s: String) -> String{
     let mut s = s.clone();
-    for i in 0..2 {
+    for _ in 0..2 {
         s.remove(0);
         s.pop();
     }
