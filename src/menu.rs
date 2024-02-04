@@ -1,6 +1,4 @@
-use std::error::Error;
 use std::io;
-use sled::*;
 
 #[derive(Debug, PartialEq)]
 pub enum Action {
@@ -8,8 +6,6 @@ pub enum Action {
     RESUME,
     SAVED,
 }
-
-
 pub fn render_menu() -> Action {
     clear();
     println!("-----------------------------------");
@@ -20,54 +16,55 @@ pub fn render_menu() -> Action {
     println!("| 4. Settings                     |");
     println!("| 5. Exit                         |");
     println!("-----------------------------------");
-    match get_int(){
+    match get_int() {
         1 => Action::START,
         2 => Action::RESUME,
         3 => Action::SAVED,
         4 => render_settings(),
         5 => std::process::exit(0),
         _ => render_menu()
-
     }
 }
 
 pub fn render_settings() -> Action {
-
     clear();
     println!("---------------------------------------------");
-    println!("| Select option:                              ");
-    println!("| 1. Language ({})                       ", eval("lang"));
-    println!("| 2. How many guessses ({})              ", eval("guess"));
-    println!("| 3. How long the world (custom only for English)({})                    ", eval("length"));
+    println!("| Select option:");
+    println!("| 1. Language ({})", eval("lang"));
+    println!("| 2. How many guessses ({})", eval("guess"));
+    println!("| 3. How long the world (custom only for English)({})", eval("length"));
     println!("| 4. Turn on/off easy mode (English only) ({}) ", eval("easy"));
-
-    println!("| 5. Back                                     ");
-    println!("---------------------------------------------" );
-    match get_int(){
+    println!("| 5. Back");
+    println!("---------------------------------------------");
+    match get_int() {
         1 => render_lang(),
-        2 => {
-            clear();
-            println!("Insert a number (deafult: 13): ");
-            let _ = sled::open("data").unwrap().insert("guess", &*get_int().to_string());
-            render_settings()
-        }
-        3 =>  {
-            clear();
-            println!("Insert a number (deafult: 0 (random): ");
-            let _ = sled::open("data").unwrap().insert("length", &*get_int().to_string());
-            render_settings()
-        }
-        4 => {
-            match eval("easy") == "0" {
-                true => sled::open("data").unwrap().insert("easy", "1"),
-                false => sled::open("data").unwrap().insert("easy", "0")
-            }.expect("Something went wrong with database");
-
-            render_settings()
-        }
+        2 => set_guesses(),
+        3 => set_length(),
+        4 => set_mode(),
         _ => render_menu()
     }
+}
 
+fn set_guesses() -> Action {
+    clear();
+    println!("Insert a number (deafult: 13): ");
+    let _ = sled::open("data").unwrap().insert("guess", &*get_int().to_string());
+    render_settings()
+}
+
+fn set_length() -> Action {
+    clear();
+    println!("Insert a number (deafult: 0 (random): ");
+    let _ = sled::open("data").unwrap().insert("length", &*get_int().to_string());
+    render_settings()
+}
+
+fn set_mode() -> Action {
+    match eval("easy") == "0" {
+        true => sled::open("data").unwrap().insert("easy", "1"),
+        false => sled::open("data").unwrap().insert("easy", "0")
+    }.expect("Something went wrong with database");
+    render_settings()
 }
 
 pub fn render_lang() -> Action {
@@ -81,13 +78,13 @@ pub fn render_lang() -> Action {
     println!("| 5. Spanish     |");
     println!("| 6. German      |");
     println!("| 7. Back        |");
-    println!("-----------------" );
+    println!("-----------------");
     let input = get_int();
     if input == 7 {
-        return render_menu()
+        return render_menu();
     }
     if input > 7 {
-        return render_lang()
+        return render_lang();
     }
     let value = match input {
         1 => "en",
@@ -106,23 +103,24 @@ pub fn clear() {
     print!("{}[2J", 27 as char);
 }
 
-fn get_int() -> i32{
+fn get_int() -> i32 {
     let mut num = String::new();
-    io::stdin().read_line(&mut num).expect("read error, somehow?");
+    io::stdin().read_line(&mut num).unwrap();
     num.trim().parse().unwrap_or(13)
 }
-pub fn eval(key: &str) -> String{
-    let con = sled::open("data").unwrap().get(key).unwrap();
-    match con {
-        Some(x) =>   String::from(std::str::from_utf8 (&x).unwrap()),
-        None => {
-            match key {
-                "lang" => String::from("en"),
-                "length" => String::from("0"),
-                "guess" => String::from("13"),
-                _ => String::from("Not set")
-            }
-        }
-    }
 
+pub fn eval(key: &str) -> String {
+    match sled::open("data").unwrap().get(key).unwrap() {
+        Some(x) => String::from(std::str::from_utf8(&x).unwrap()),
+        None => set_default(key)
+    }
+}
+
+fn set_default(key: &str) -> String {
+    match key {
+        "lang" => String::from("en"),
+        "length" => String::from("0"),
+        "guess" => String::from("13"),
+        _ => String::from("Not set")
+    }
 }
