@@ -67,7 +67,7 @@ pub fn render_settings() -> (Action, i32) {
     println!("| Select option:");
     println!("| 1. Language ({})", eval("lang"));
     println!("| 2. How many guessses ({})", eval("guess"));
-    println!("| 3. How long the world (custom only for English)({})", eval("length"));
+    println!("| 3. How long the world ({})", eval("length"));
     println!("| 4. Turn on/off easy mode (English only) ({}) ", eval("easy"));
     println!("| 5. Back");
     println!("---------------------------------------------");
@@ -112,13 +112,14 @@ pub fn render_lang() -> (Action, i32) {
     println!("| 4. Italian     |");
     println!("| 5. Spanish     |");
     println!("| 6. German      |");
-    println!("| 7. Back        |");
+    println!("| 7. Polish      |");
+    println!("| 8. Back        |");
     println!("-----------------");
     let input = get_int();
-    if input == 7 {
+    if input == 8 {
         return render_menu();
     }
-    if input > 7 {
+    if input > 8 {
         return render_lang();
     }
     let value = match input {
@@ -128,6 +129,7 @@ pub fn render_lang() -> (Action, i32) {
         4 => "it",
         5 => "es",
         6 => "de",
+        7 => "pl",
         _ => "en"
     };
     let _ = sled::open("data").unwrap().insert("lang", value);

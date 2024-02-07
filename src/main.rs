@@ -1,3 +1,5 @@
+
+/* IMPORTS */
 use std::io;
 
 use crate::game::{Game, game_load, game_save};
@@ -7,10 +9,15 @@ mod menu;
 mod game;
 mod api;
 
+/*  Main
+- Deciding which game to load and play
+- Recursive to run forever
+*/
+
 fn main() {
     let menu_result = menu::render_menu();
     match menu_result.0  {
-        Action::START => new_game(),
+        Action::START => update(&mut Game::new()),
         Action::RESUME => update(&mut game_load(eval("last")).unwrap_or(Game::new())),
         Action::SAVED => update(&mut game_load(menu_result.1.to_string()).unwrap_or(Game::new()))
     }
@@ -19,14 +26,15 @@ fn main() {
     main()
 }
 
-fn new_game() {
-    clear();
-    println!("The executioner is thinking......");
-    println!("He got one!");
-    println!("Loading...");
-    clear();
-    update(&mut Game::new())
-}
+/* Game itself
+- Checks for win and lose
+- Informs the player about game statistics
+- Renders the blanks
+- Gets user input
+- Checks if player wants to leave the game, if yes, saves it and returns
+- Checks the answear adds it to the correct or wrong letter pool and run itsels recursivly
+- Deducts guesses if the answear was wrong
+*/
 
 fn update(game: &mut Game) {
     clear();
@@ -73,6 +81,10 @@ fn update(game: &mut Game) {
     }
 }
 
+/* Getting user input
+- Getting user input as String
+- Returning only the first char
+*/
 
 fn get_char() -> char {
     let mut input = String::new();

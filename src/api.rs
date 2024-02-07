@@ -1,18 +1,40 @@
 use crate::menu::eval;
 
 pub fn get_word() -> String{
+    if eval("lang").as_str() == "pl" {
+        return api(generate_polish_url());
+    }
     setup_mode();
-
-    let url = match eval("easy").as_str(){
-        "0" => generate_hard_url(),
-        "1" => generate_easy_url(),
+    match eval("easy").as_str(){
+        "0" => api(generate_hard_url()),
+        "1" => api(generate_easy_url()),
         _ => panic!("How the fuck")
-    };
+    }
 
+}
+
+pub fn api(url: String) -> String {
+    println!("The executioner is thinking......");
     match reqwest::blocking::get(url).unwrap().text() {
-        Ok(value) => word_cleanup(value),
+        Ok(value) => {
+            match eval("lang").as_str() == "pl" {
+                true => polish_cleanup(value),
+                false => word_cleanup(value),
+            }
+        }
         Err(_) => get_word()
     }
+}
+
+fn polish_cleanup(s: String) -> String {
+    let mut s = s.clone();
+    for _ in 0..9 {
+        s.remove(0);
+    }
+    for _ in 0..2 {
+        s.pop();
+    }
+    s
 
 }
 
@@ -47,5 +69,11 @@ fn generate_hard_url() -> String {
         "0" => format!("https://random-word-api.herokuapp.com/word?lang={}", eval("lang").as_str()),
         _ => format!("https://random-word-api.herokuapp.com/word?lang={}&length={}", eval("lang").as_str(), eval("length").as_str()),
 
+    }
+}
+fn generate_polish_url() -> String {
+    match eval("length").as_str() {
+        "0" => String::from("http://16.171.29.102/word"),
+        _ => format!("http://16.171.29.102/word/length/{}", eval("length").as_str())
     }
 }
